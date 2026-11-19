@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Roblox Question</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Mesma pilha de fonte usada no quiz da P1: nenhuma fonte web para baixar. */
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { min-width: 280px; margin: 0; background: #fff; overflow: hidden; }
+
+    /* Fundo: cópia do topo da P1 (mesmo layout e cores). O backdrop abaixo desfoca
+       com o mesmo filtro do Cronos, então o fundo da pressel e o da P1 ficam iguais. */
+    .scene { position: fixed; inset: 0; overflow: hidden; pointer-events: none; background: #fff; color: #212529; }
+    .sc-top { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e5e5e5; }
+    .sc-top span { width: 44px; height: 44px; border-radius: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    .sc-body { max-width: 760px; margin: 0 auto; padding: 14px 16px; text-align: center; }
+    .sc-h { margin: 6px 0 4px; font-size: 22px; line-height: 1.2; }
+    .sc-sub { margin: 0 0 34px; font-size: 16px; line-height: 1.5; }
+    .sc-btn { margin: 0 0 40px; padding: 16px; border-radius: 8px; background: #15803d; color: #fff; font-size: 18px; font-weight: 700; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,.1); }
+    .sc-eyebrow { margin-bottom: 8px; color: #6b7280; font-size: 16px; letter-spacing: .1em; }
+    .sc-big { margin-bottom: 22px; font-size: 24px; line-height: 1.33; }
+    .sc-rule { border-top: 1px solid #ccc; margin: 0 0 22px; }
+    .sc-p { margin: 0 0 20px; font-size: 20px; line-height: 1.6; }
+
+
+    /* ===== Quiz no estilo Roblox (mesmas classes do quiz original: .card, .opt, .opt-text, data-answer, .selected) ===== */
+    .backdrop {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
+      background:
+        radial-gradient(circle, rgba(255,255,255,.07) 5px, transparent 5.5px) 0 0 / 28px 28px,
+        rgba(12, 14, 16, .62);
+      -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2);
+    }
+    .card {
+      --rb-card: #232527; --rb-edge: #0f1011; --rb-tile: #393b3d; --rb-tile-hover: #45484a; --rb-tile-shadow: #17181a;
+      --rb-muted: #a3a7ab; --rb-green: #00b06f; --rb-green-dark: #00784b; --rb-blue: #335fff; --rb-blue-dark: #1f3fc7;
+      --rb-red: #e5383b; --rb-red-dark: #9f1d20; --rb-yellow: #f5b800; --rb-yellow-dark: #a87d00;
+      display: flex; flex-direction: column; width: 100%; max-width: 420px; max-height: calc(100dvh - 40px);
+      overflow-y: auto; padding: 22px 18px 16px;
+      background: var(--rb-card); color: #fff;
+      border: 3px solid var(--rb-edge); border-radius: 14px;
+      box-shadow: 0 10px 0 var(--rb-edge), 0 30px 60px rgba(0, 0, 0, .45);
+      font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.4; -webkit-font-smoothing: antialiased;
+      animation: rb-drop .45s cubic-bezier(.2, .9, .3, 1.25) both;
+    }
+    @keyframes rb-drop { from { opacity: 0; transform: translateY(-28px) rotate(-1.5deg); } to { opacity: 1; transform: none; } }
+
+    .q-header { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+    .q-counter {
+      display: grid; place-items: center; width: 46px; height: 46px; min-width: 46px;
+      background: var(--rb-blue); border-radius: 9px; box-shadow: 0 5px 0 var(--rb-blue-dark);
+      transform: rotate(-12deg); color: #fff; font-size: 22px; font-weight: 900;
+    }
+    .q-counter span { transform: rotate(12deg); }
+    .q-meta { flex: 1; min-width: 0; }
+    .q-label { display: block; margin-bottom: 8px; color: var(--rb-muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .q-label b { color: #fff; }
+    .prog { display: flex; gap: 6px; }
+    .prog span {
+      flex: 1; height: 16px; border-radius: 5px;
+      background: var(--rb-tile); box-shadow: inset 0 -3px 0 var(--rb-tile-shadow);
+      transition: background-color .3s ease, box-shadow .3s ease;
+    }
+    .prog span.is-filled {
+      background: radial-gradient(circle, rgba(255,255,255,.35) 2.5px, transparent 3px) 0 -1px / 14px 16px, var(--rb-green);
+      box-shadow: inset 0 -3px 0 var(--rb-green-dark);
+    }
+
+    .q-title { display: block; margin: 0 0 18px; color: #fff; font-size: 22px; font-weight: 900; line-height: 1.25; letter-spacing: -.01em; }
+
+    .opts { display: flex; flex-direction: column; gap: 14px; }
+    .opt {
+      display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px;
+      padding: 10px 14px 10px 10px;
+      background: var(--rb-tile); color: #fff; border-radius: 11px;
+      box-shadow: 0 5px 0 var(--rb-tile-shadow);
+      font-size: 16px; font-weight: 800; text-align: left; text-decoration: none;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+      transition: transform .1s ease, box-shadow .1s ease, background-color .15s ease;
+    }
+    .opt-marker {
+      display: grid; place-items: center; width: 42px; height: 42px; min-width: 42px;
+      border-radius: 8px; color: #fff;
+    }
+    .opt:nth-child(1) .opt-marker { background: var(--rb-red); box-shadow: inset 0 -4px 0 var(--rb-red-dark); }
+    .opt:nth-child(2) .opt-marker { background: var(--rb-blue); box-shadow: inset 0 -4px 0 var(--rb-blue-dark); }
+    .opt:nth-child(3) .opt-marker { background: var(--rb-yellow); box-shadow: inset 0 -4px 0 var(--rb-yellow-dark); }
+    .opt-marker svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .opt-text { display: block; flex: 1; }
+    .opt-check {
+      display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px;
+      border-radius: 8px; background: rgba(255, 255, 255, .08); color: var(--rb-muted);
+      transition: background-color .15s ease, color .15s ease, transform .2s ease;
+    }
+    .opt-check svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    @media (hover: hover) {
+      .opt:hover { background: var(--rb-tile-hover); }
+      .opt:hover .opt-check { color: #fff; transform: translateX(2px); }
+    }
+    .opt:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--rb-tile-shadow); }
+    .opt:focus-visible { outline: 3px solid #9db5ff; outline-offset: 3px; }
+    .opt.selected { background: var(--rb-green); box-shadow: 0 5px 0 var(--rb-green-dark); animation: rb-pop .25s ease-out; }
+    .opt.selected .opt-check { background: rgba(0, 0, 0, .18); color: #fff; transform: translateX(3px); }
+    @keyframes rb-pop { 0% { transform: translateY(4px); } 60% { transform: translateY(-2px) scale(1.02); } 100% { transform: none; } }
+
+    .compliance { margin-top: 20px; padding-top: 14px; border-top: 2px dashed var(--rb-tile); text-align: center; }
+    .compliance p { margin: 0; color: var(--rb-muted); font-size: 11px; font-weight: 600; line-height: 1.55; }
+
+    @media (max-width: 360px) {
+      .card { padding: 18px 13px 14px; }
+      .q-header { gap: 12px; }
+      .q-counter { width: 40px; height: 40px; min-width: 40px; font-size: 19px; }
+      .q-title { font-size: 19px; margin-bottom: 14px; }
+      .opt { font-size: 15px; min-height: 58px; gap: 11px; }
+      .opt-marker { width: 36px; height: 36px; min-width: 36px; }
+      .opt-marker svg { width: 20px; height: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card, .opt.selected { animation: none; }
+      .opt, .opt-check, .prog span { transition: none; }
+      .opt:active { transform: none; }
+    }
+  </style>
+  <style>
+
+    /* Layout da página de referência, restrito ao conteúdo atrás do modal. */
+    .scene { color: #333; line-height: 1.5; }
+    .scene h1, .scene h2, .scene h3, .scene h4, .scene h5, .scene h6 { margin-top: 0; margin-bottom: .5rem; font-weight: 500; line-height: 1.2; }
+    .scene p { margin-top: 0; margin-bottom: 1rem; }
+    .scene a { color: #0d6efd; text-decoration: underline; }
+    .scene img, .scene svg { vertical-align: middle; }
+    .scene .container { width: 100%; margin-right: auto; margin-left: auto; padding: 0 12px; }
+    .scene .row { display: flex; flex-wrap: wrap; margin-left: -12px; margin-right: -12px; }
+    .scene .row > * { width: 100%; max-width: 100%; padding-left: 12px; padding-right: 12px; flex-shrink: 0; }
+    .scene .flex, .scene .d-flex { display: flex; }
+    .scene .d-block { display: block; }
+    .scene .d-inline-block { display: inline-block; }
+    .scene .d-none { display: none; }
+    .scene .flex-column { flex-direction: column; }
+    .scene .flex-shrink-0 { flex-shrink: 0; }
+    .scene .items-center, .scene .align-items-center { align-items: center; }
+    .scene .align-items-end { align-items: flex-end; }
+    .scene .justify-between, .scene .justify-content-between { justify-content: space-between; }
+    .scene .w-full, .scene .w-100 { width: 100%; }
+    .scene .h-100 { height: 100%; }
+    .scene .object-cover { object-fit: cover; }
+    .scene .object-center { object-position: center; }
+    .scene .rounded { border-radius: .25rem; }
+    .scene .rounded-xl { border-radius: .75rem; }
+    .scene .border { border: 1px solid #dee2e6; }
+    .scene .border-0 { border: 0; }
+    .scene .shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1); }
+    .scene .bg-light { background: #f8f9fa; }
+    .scene .text-white { color: #fff; }
+    .scene .text-muted { color: #6c757d; }
+    .scene .text-success { color: #198754; }
+    .scene .text-gray-500 { color: #6b7280; }
+    .scene .text-gray-900 { color: #111827; }
+    .scene .text-center { text-align: center; }
+    .scene .text-left { text-align: left; }
+    .scene .text-decoration-none { text-decoration: none; }
+    .scene .text-base { font-size: 1rem; line-height: 1.5rem; }
+    .scene .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .scene .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+    .scene .font-bold, .scene .fw-bold { font-weight: 700; }
+    .scene .font-medium { font-weight: 500; }
+    .scene .fw-normal { font-weight: 400; }
+    .scene .tracking-widest { letter-spacing: .1em; }
+    .scene .uppercase { text-transform: uppercase; }
+    .scene .leading-relaxed { line-height: 1.625; }
+    .scene .fs-3 { font-size: calc(1.3rem + .6vw); }
+    .scene .fs-5 { font-size: 1.25rem; }
+    .scene .small { font-size: .875em; }
+    .scene .mx-auto { margin-left: auto; margin-right: auto; }
+    .scene .mx-1 { margin-left: .25rem; margin-right: .25rem; }
+    .scene .mt-2, .scene .my-2 { margin-top: .5rem; }
+    .scene .mt-4 { margin-top: 1.5rem; }
+    .scene .mt-5 { margin-top: 3rem; }
+    .scene .mb-2, .scene .my-2 { margin-bottom: .5rem; }
+    .scene .mb-3, .scene .my-3 { margin-bottom: 1rem; }
+    .scene .my-3 { margin-top: 1rem; }
+    .scene .mb-4 { margin-bottom: 1.5rem; }
+    .scene .my-10 { margin-top: 2.5rem; margin-bottom: 2.5rem; }
+    .scene .me-3 { margin-right: 1rem; }
+    .scene .p-2 { padding: .5rem; }
+    .scene .p-3 { padding: 1rem; }
+    .scene .p-4 { padding: 1.5rem; }
+    .scene .px-3 { padding-left: 1rem; padding-right: 1rem; }
+    .scene .px-8 { padding-left: 2rem; padding-right: 2rem; }
+    .scene .px-10 { padding-left: 2.5rem; padding-right: 2.5rem; }
+    .scene .py-2 { padding-top: .5rem; padding-bottom: .5rem; }
+    .scene .py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+    .scene .py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+    .scene .pb-3 { padding-bottom: 1rem; }
+    .scene .ps-4 { padding-left: 1.5rem; }
+    .scene .space-x-3 > * + * { margin-left: .75rem; }
+    .scene .accordion-item { background: #fff; border: 1px solid rgba(0,0,0,.125); }
+    .scene .accordion-item + .accordion-item { border-top: 0; }
+    .scene .accordion-header { margin-bottom: 0; }
+    .scene .accordion-button { display: flex; align-items: center; width: 100%; padding: 1rem 1.25rem; font: inherit; font-size: 1rem; color: #212529; background: #fff; border: 0; }
+    .scene .accordion-button::after { content: '⌄'; margin-left: auto; }
+    .scene .accordion-body { padding: 1rem 1.25rem; }
+    @media (min-width: 576px) { .scene .container { max-width: 540px; } }
+    @media (min-width: 768px) {
+      .scene .container { max-width: 720px; }
+      .scene .col-md-8 { width: 66.66666667%; }
+      .scene .offset-md-2 { margin-left: 16.66666667%; }
+      .scene .col-md-5 { width: 41.66666667%; }
+      .scene .col-md-6 { width: 50%; }
+      .scene .col-md-7 { width: 58.33333333%; }
+      .scene .d-md-flex { display: flex; }
+      .scene .d-md-none { display: none; }
+    }
+    @media (min-width: 992px) { .scene .container { max-width: 960px; } .scene .mb-lg-0 { margin-bottom: 0; } }
+    @media (min-width: 1200px) { .scene .container { max-width: 1140px; } .scene .fs-3 { font-size: 1.75rem; } }
+    @media (min-width: 1400px) { .scene .container { max-width: 1320px; } }
+
+.scene {
+            
+            color: #333;
+            background-color: #fff;
+        }
+.scene h1, .scene h2, .scene h3, .scene h4, .scene h5, .scene h6, .scene .title-font {
+            
+        }
+.scene .bg-green-700 { background-color: #15803d !important; }
+.scene .hover:bg-green-800:hover { background-color: #166534 !important; }
+.scene .custom-section {
+            transition: transform 0.2s ease;
+            cursor: pointer;
+        }
+.scene .custom-section:hover {
+            transform: scale(1.02);
+        }
+.scene .accordion-button:not(.collapsed) {
+            background-color: #f8f9fa;
+            color: #212529;
+            box-shadow: none;
+        }
+.scene .accordion-button:focus {
+            box-shadow: none;
+            border-color: rgba(0,0,0,.125);
+        }
+.scene .fs-18 {
+            font-size: 20px !important;
+            line-height: 1.8;
+        }
+.scene .home-post-related {
+            background-size: cover;
+            background-position: center;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            position: relative;
+            overflow: hidden;
+        }
+.scene .home-post-related::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2));
+            z-index: 1;
+        }
+.scene .home-post-related > * {
+            z-index: 2;
+            position: relative;
+        }
+.scene .arrow-link {
+            color: #fff;
+            font-weight: bold;
+            text-decoration: none;
+            margin-top: 10px;
+            display: inline-block;
+        }
+.scene .arrow-link:hover {
+            color: #ddd;
+            text-decoration: underline;
+        }
+.scene .content-text p {
+            font-size: 20px;
+            line-height: 1.7;
+        }
+.scene .content-text h3 {
+            font-size: 30px;
+        }
+.scene #customAccordion .accordion-body {
+            font-size: 18px !important;
+        }
+.scene .bg-light span {
+            font-size: 22px !important;
+            font-weight: 600;
+        }
+.scene .post-navigation .previous-post {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #555;
+            text-align: left;
+        }
+.scene .post-navigation .previous-post .title {
+            margin-left: 10px;
+        }
+.scene #customAccordion .accordion-collapse.collapse {
+            visibility: visible !important;
+        }
+.scene #customAccordion .accordion-collapse.collapse:not(.show) {
+            display: none !important;
+        }
+.scene #customAccordion .accordion-button:hover, .scene #customAccordion .accordion-button:focus, .scene #customAccordion .accordion-button:hover strong {
+            color: #212529 !important;
+            background-color: transparent !important;
+        }
+.scene #customAccordion .accordion-button {
+            white-space: normal !important;
+            text-align: left !important;
+            word-wrap: break-word !important;
+        }
+.scene #customAccordion .accordion-collapse.collapse {
+                            visibility: visible !important;
+                        }
+.scene #customAccordion .accordion-collapse.collapse:not(.show) {
+                            display: none !important;
+                        }
+.scene #customAccordion .accordion-button:hover, .scene #customAccordion .accordion-button:focus, .scene #customAccordion .accordion-button:hover strong {
+                            color: #212529 !important;
+                            background-color: transparent !important;
+                        }
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true" data-nosnippet inert>
+<main id="main" class="container mt-2 mb-2">
+    <div class="row">
+      <div class="col-md-8 col-sm-12 offset-md-2">
+        <article class="type-post status-publish format-standard hentry">
+          <h1 style="text-align:center;font-size:22px" class="mt-2">
+            HOW TO EARN ROBUX WITH ROBLOX STUDIO
+          </h1>
+          <div id="mob_top"></div>
+          <div class="entry-content">
+            <p style="text-align:center;font-size:16px">
+              Learn how to create a Roblox game and explore ways to earn Robux as a creator.
+            </p>
+            <section class="mx-1 my-10">
+              <a href="/roblox-explained-explore-create-and-build-your-presence-p2" class="text-white text-decoration-none">
+                <div class="custom-section rounded-xl border p-3 shadow-md w-full bg-green-700 my-3">
+                  <div class="flex w-full items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="text-lg font-bold">
+                        Explore Roblox Creation ➝
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </section>
+            <div id="heading" class="d-block mx-auto px-3 mb-4 mt-5">
+              <h6 class="fw-normal text-base title-font text-center text-gray-500 tracking-widest uppercase">
+                A beginner's guide to Roblox game development.
+              </h6>
+              <h2 class="text-center text-gray-900 text-2xl title-font font-medium mt-2">
+                Can You Earn Robux Without Buying It?
+              </h2>
+            </div>
+            <div id="landing" class="d-block py-4 mx-auto px-3" style="border-top:1px solid rgb(204,204,204);border-bottom:1px solid rgb(204,204,204);">
+              <!-- DESKTOP -->
+              <div class="row d-none d-md-flex align-items-center">
+                <div class="col-lg-5 col-md-5 col-sm-12 mb-4 mb-lg-0">
+                  <img decoding="async" alt="Illustration accompanying a beginner guide to Roblox game creation" style="height:190px;object-fit:cover;" class="w-100 h-100 object-cover object-center rounded border" src="https://games.netdinheiro.com.br/wp-content/uploads/2026/09/d3f742a8-ff05-4ae1-a0aa-9a3e13ba6ca7-1.png">
+                </div>
+                <div class="col-lg-7 col-md-7 col-sm-12 d-flex flex-column justify-content-between">
+                  <span class="fs-18 leading-relaxed pb-3 text-center">
+                    You can work toward earning Robux by creating a Roblox experience and offering optional purchases. Start with Roblox Studio, build a small game, and learn how game passes and developer products work. Earnings require effort and are not guaranteed.
+                  </span>
+                  <div class="d-flex flex-column align-items-end">
+                    <a class="d-inline-block text-center text-white border-0 py-2 px-8 text-lg focus:outline-none rounded bg-green-700 hover:bg-green-800 btn-block text-decoration-none" href="/how-to-grow-robux-without-spending-money-5-practical-strategies-p2">
+                      EXPLORE ROBUX STRATEGIES
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <!-- MOBILE -->
+              <div class="row d-md-none">
+                <span class="fs-18 leading-relaxed pb-3 text-center">
+                  You can work toward earning Robux by creating a Roblox experience and offering optional purchases. Start with Roblox Studio, build a small game, and learn how game passes and developer products work. Earnings require effort and are not guaranteed.
+                </span>
+                <div class="col-12 mb-4">
+                  <img decoding="async" alt="Illustration accompanying a beginner guide to Roblox game creation" style="height:190px;object-fit:cover;" class="w-100 h-100 object-cover object-center rounded border" src="https://games.netdinheiro.com.br/wp-content/uploads/2026/09/d3f742a8-ff05-4ae1-a0aa-9a3e13ba6ca7-1.png">
+                </div>
+                <div class="d-flex flex-column align-items-center w-100">
+                  <a class="d-inline-block text-center text-white border-0 py-2 px-8 text-lg focus:outline-none rounded bg-green-700 hover:bg-green-800 btn-block text-decoration-none w-100" href="/how-to-grow-robux-without-spending-money-5-practical-strategies-p2">
+                    EXPLORE ROBUX STRATEGIES
+                  </a>
+                </div>
+              </div>
+              <div class="row mt-4">
+                <div class="col-12">
+                  <span class="fs-18 leading-relaxed text-center d-block mb-4">
+                    Before you create a Roblox game, understand the basics: choose a simple idea, test the gameplay, and offer clear value to players. This guide explains the opportunities and challenges of earning Robux through game development.
+                  </span>
+                </div>
+                <div class="col-12">
+                  <div class="row">
+                    <div class="col-md-6 p-2">
+                      <div class="bg-light rounded d-flex p-4 h-100 align-items-center border">
+                        <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" class="flex-shrink-0 me-3 text-success" style="width:1.5rem;height:1.5rem;" viewBox="0 0 24 24">
+                          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                          <path d="M22 4L12 14.01l-3-3"></path>
+                        </svg>
+                        <span class="title-font font-medium text-left">
+                          Build a Roblox game
+                        </span>
+                      </div>
+                    </div>
+                    <div class="col-md-6 p-2">
+                      <div class="bg-light rounded d-flex p-4 h-100 align-items-center border">
+                        <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" class="flex-shrink-0 me-3 text-success" style="width:1.5rem;height:1.5rem;" viewBox="0 0 24 24">
+                          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                          <path d="M22 4L12 14.01l-3-3"></path>
+                        </svg>
+                        <span class="title-font font-medium text-left">
+                          Explore game passes
+                        </span>
+                      </div>
+                    </div>
+                    <div class="col-md-6 p-2">
+                      <div class="bg-light rounded d-flex p-4 h-100 align-items-center border">
+                        <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" class="flex-shrink-0 me-3 text-success" style="width:1.5rem;height:1.5rem;" viewBox="0 0 24 24">
+                          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                          <path d="M22 4L12 14.01l-3-3"></path>
+                        </svg>
+                        <span class="title-font font-medium text-left">
+                          Learn creator skills
+                        </span>
+                      </div>
+                    </div>
+                    <div class="col-md-6 p-2">
+                      <div class="bg-light rounded d-flex p-4 h-100 align-items-center border">
+                        <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" class="flex-shrink-0 me-3 text-success" style="width:1.5rem;height:1.5rem;" viewBox="0 0 24 24">
+                          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                          <path d="M22 4L12 14.01l-3-3"></path>
+                        </svg>
+                        <span class="title-font font-medium text-left">
+                          Improve your gameplay
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row mt-4 mb-2">
+                <div class="col-12 text-center">
+                  <a class="d-inline-block text-center text-white border-0 py-3 px-10 text-lg font-medium rounded custom-section bg-green-700 hover:bg-green-800 text-decoration-none" href="/5-practical-ways-to-work-toward-robux-without-buying-it-p2">
+                    EXPLORE WAYS TO EARN ROBUX
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="content-text">
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">How to Earn Robux by Creating a Roblox Game</h2>
+              <p>If you are searching for <strong>how to earn Robux</strong>, game creation is one path to explore. Robux is Roblox's virtual currency. Creators can earn it through their experiences, while simply playing a game does not guarantee a Robux reward.</p>
+              <p>This is an introductory guide to <strong>Roblox game development</strong>. It explains where to start, what monetization involves, and what to consider before investing your time in a project.</p>
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">Roblox Studio for Beginners: Your First Steps</h2>
+              <p>For your first project, focus on one playable idea. A short obstacle course or a small exploration game is easier to test and improve than a large, unfinished world.</p>
+              <ol class="fs-18 ps-4">
+                <li><strong>Choose a small goal.</strong> Decide what the player should do and how they will know they have succeeded.</li>
+                <li><strong>Build a prototype.</strong> In Roblox Studio, create the starting area and one complete gameplay sequence.</li>
+                <li><strong>Test the first session.</strong> Ask a tester to try the game without instructions from you. Watch where they get confused.</li>
+                <li><strong>Fix the main problems.</strong> Prioritize readable instructions, working controls, and a clear route through the experience.</li>
+                <li><strong>Plan optional purchases.</strong> Describe exactly what a player would receive before adding monetization.</li>
+              </ol>
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">Game Passes and Developer Products Explained</h2>
+              <p>A <strong>game pass</strong> is a one-time purchase for a special privilege. A <strong>developer product</strong> can be purchased repeatedly, such as an in-game consumable. Choose features that fit your gameplay and explain the benefit clearly.</p>
+              <p>For example, compare a permanent cosmetic perk with a consumable used during a round. They solve different player needs. Plan how each purchase will be delivered and tested before offering it.</p>
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">8 Advantages of Learning Roblox Game Development</h2>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">1) Build a project around your own idea</h3>
+              <p>You choose the setting, objectives, and pace. Start with a concept you can explain in one sentence so players understand the experience quickly.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">2) Explore a creator path to earning Robux</h3>
+              <p>Instead of purchasing currency directly, you can develop something for players to enjoy. The work begins with a useful experience, then a monetization plan.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">3) Compare different purchase ideas</h3>
+              <p>Think about whether a proposed purchase adds a meaningful benefit. A clear product description helps players decide whether it suits them.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">4) Practice game design with a small scope</h3>
+              <p>A short level lets you practice checkpoints, difficulty, instructions, and feedback. Improve one part at a time rather than adding features without testing.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">5) Develop practical problem-solving skills</h3>
+              <p>Debugging, organizing tasks, and reviewing feedback are useful habits. Keep notes on what went wrong and how you fixed it.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">6) Improve an existing project</h3>
+              <p>You can revisit a level, simplify an interface, or adjust a confusing objective. Each revision is a chance to make the experience easier to understand.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">7) Learn from actual players</h3>
+              <p>Ask testers what they enjoyed and where they stopped. Use their observations to decide what needs attention before expanding your game.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">8) Build a portfolio of finished work</h3>
+              <p>A small completed experience can show what you have learned. Document your design choices and the changes you made after testing.</p>
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">8 Challenges to Consider Before Trying to Earn Robux</h2>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">1) Learning the tools takes practice</h3>
+              <p>Break unfamiliar tasks into small exercises. Build a working prototype before attempting complex systems.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">2) Robux earnings are not guaranteed</h3>
+              <p>A published game may attract few players or generate no purchases. Treat the first release as a learning project rather than an income forecast.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">3) A game needs a clear reason to play</h3>
+              <p>Explain what makes the experience interesting. A title and thumbnail should reflect the actual gameplay, without promising rewards the game cannot deliver.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">4) Publishing and monetization have requirements</h3>
+              <p>Check current account and experience requirements in the Roblox Creator Hub before planning a release. Do not assume every feature is available to every creator.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">5) Bugs can disrupt the player experience</h3>
+              <p>Test important actions such as starting a round, finishing an objective, and returning after a failure. Fix blockers before adding new content.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">6) Purchases need careful implementation</h3>
+              <p>Confirm that a buyer receives the described benefit. Clear descriptions and reliable delivery matter more than adding a large number of purchase prompts.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">7) Extra assets and promotion can add costs</h3>
+              <p>Avoid calling a project cost-free without checking its needs. Decide which resources are essential and which can wait until the core game works.</p>
+              <h3 class="wp-block-heading mt-4 fw-bold fs-5">8) A large scope can delay completion</h3>
+              <p>Set a short list of launch essentials. Save optional maps, modes, and effects for later revisions.</p>
+              <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">Your Next Step: Build Something Playable</h2>
+              <p>Learning <strong>how to create a Roblox game</strong> starts with a manageable project. Choose one idea, finish a playable version, and collect feedback before expanding it.</p>
+              <p>When the core experience works, explore which optional purchases would make sense for your players. Keep your expectations realistic as you learn how to earn Robux through creation.</p>
+            </div>
+            
+            <h2 class="wp-block-heading mt-5 mb-3 fw-bold fs-3">Questions About Earning Robux</h2>
+            <div class="accordion mt-4" id="customAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading0">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse0" aria-expanded="true" aria-controls="collapse0">
+                    <strong>
+                      How do Roblox creators earn Robux?
+                    </strong>
+                  </button>
+                </h2>
+                <div id="collapse0" class="accordion-collapse collapse show" aria-labelledby="heading0" data-bs-parent="#customAccordion">
+                  <div class="accordion-body text-muted">
+                    Creators can earn Robux through experiences and eligible avatar-item sales. For a game, start by learning about passes and developer products. This guide focuses on building an experience, not distributing currency.
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading1">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="false" aria-controls="collapse1">
+                    <strong>
+                      Do beginners need coding experience to create a Roblox game?
+                    </strong>
+                  </button>
+                </h2>
+                <div id="collapse1" class="accordion-collapse collapse" aria-labelledby="heading1" data-bs-parent="#customAccordion">
+                  <div class="accordion-body text-muted">
+                    Start with a small project and learn each tool as you need it. A simple prototype helps you practice building and testing before you attempt more complex game systems.
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading2">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2" aria-expanded="false" aria-controls="collapse2">
+                    <strong>
+                      Can I earn Robux without buying it directly?
+                    </strong>
+                  </button>
+                </h2>
+                <div id="collapse2" class="accordion-collapse collapse" aria-labelledby="heading2" data-bs-parent="#customAccordion">
+                  <div class="accordion-body text-muted">
+                    Creator earnings are different from buying Robux for your own account. Building an experience is one route to explore, but it requires work and does not guarantee results. Check requirements and possible costs for your project.
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading3">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3" aria-expanded="false" aria-controls="collapse3">
+                    <strong>
+                      Are free Robux generators real?
+                    </strong>
+                  </button>
+                </h2>
+                <div id="collapse3" class="accordion-collapse collapse" aria-labelledby="heading3" data-bs-parent="#customAccordion">
+                  <div class="accordion-body text-muted">
+                    Roblox states that Robux generators are scams. This page is an informational guide and does not give away Robux. Never share your password or account details with a site promising free currency.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <section class="mx-1 my-10 mt-5">
+              <a href="https://www.roblox.com/" class="text-white text-decoration-none">
+                <div class="custom-section rounded-xl border p-3 shadow-md w-full bg-green-700 my-3">
+                  <div class="flex w-full items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="text-lg font-bold">
+                        Visit Roblox ➝
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </section>
+            <p class="small text-muted mt-4">
+              Independent educational content; not affiliated with Roblox Corporation. For current information, read
+              <a href="https://en.help.roblox.com/hc/en-us/articles/203313200-Ways-to-Get-Robux">Roblox's ways to get Robux</a>
+              and the <a href="https://create.roblox.com/docs/production/monetization">Creator Hub monetization guide</a>.
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
+  </div>
+
+  <main class="backdrop">
+    <section class="card" role="dialog" aria-modal="true" aria-labelledby="question">
+      <div class="q-header">
+        <div class="q-counter" aria-hidden="true"><span>1</span></div>
+        <div class="q-meta">
+          <span class="q-label">Step <b>1</b> of 2</span>
+          <div class="prog" aria-hidden="true"><span class="is-filled"></span><span></span></div>
+        </div>
+      </div>
+
+      <h2 class="q-title" id="question">What type of Roblox games do you enjoy most?</h2>
+
+      <div class="opts">
+        <a class="opt" href="p1/" data-answer="adventure">
+          <span class="opt-marker" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></span>
+          <span class="opt-text">Adventure &amp; obby</span>
+          <span class="opt-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="opt" href="p1/" data-answer="roleplay">
+          <span class="opt-marker" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2.1.7 3.5 2.8 3.5 5.7"/></svg></span>
+          <span class="opt-text">Roleplay &amp; simulator</span>
+          <span class="opt-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+        </a>
+        <a class="opt" href="p1/" data-answer="everything">
+          <span class="opt-marker" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></span>
+          <span class="opt-text">A bit of everything</span>
+          <span class="opt-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+        </a>
+      </div>
+
+      <footer class="compliance">
+        <p>Important notice: This page is for informational purposes only. It is not affiliated with, endorsed by, or sponsored by Roblox Corporation. Availability and terms of any offers on the next page may vary.</p>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+  /* Script de DEMONSTRAÇÃO (GitHub Pages): marca a opção e leva para a P1 de exemplo.
+     Em produção, use o script original da pré-sell (tracking, divisão de tráfego, UTMs):
+     ele continua funcionando, porque as classes .card, .opt, .opt-text, data-answer e .selected são as mesmas. */
+  (function () {
+    var links = document.querySelectorAll('.opt');
+    var going = false;
+    links.forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (going) return;
+        going = true;
+        links.forEach(function (o) { o.classList.toggle('selected', o === a); });
+        var bricks = document.querySelectorAll('.prog span');
+        if (bricks[1]) bricks[1].classList.add('is-filled');
+        var url = new URL(a.getAttribute('href'), location.href);
+        new URLSearchParams(location.search).forEach(function (v, k) { if (!url.searchParams.has(k)) url.searchParams.set(k, v); });
+        url.searchParams.set('answer', a.getAttribute('data-answer'));
+        setTimeout(function () { location.href = url.href; }, 350);
+      });
+    });
+    addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        going = false;
+        links.forEach(function (o) { o.classList.remove('selected'); });
+        var bricks = document.querySelectorAll('.prog span');
+        if (bricks[1]) bricks[1].classList.remove('is-filled');
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
